@@ -1,0 +1,219 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+ "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.mealmaker.babiyo.member">
+
+<resultMap type="memberDto" id="memberResultMap">
+	<id column="ID" property="id"/>
+	<result column="PASSWORD" property="password"/>
+	<result column="NAME" property="name"/>
+	<result column="EMAIL" property="email"/>
+	<result column="BIRTHDAY" property="birthDate" javaType="java.util.Date"/>
+	<result column="GENDER" property="gender"/>
+	<result column="PHONE" property="phone"/>
+	<result column="NICKNAME" property="nickname"/>
+	<result column="CASH" property="cash"/>
+	<result column="GRADE_CODE" property="grade"/>
+	<result column="CREATE_DATE" property="createDate" javaType="java.util.Date"/>
+	<result column="MODIFY_DATE" property="modifyDate" javaType="java.util.Date"/>
+</resultMap>
+
+<sql id="search">
+	<if test="searchOption != null">
+	<choose>
+	<!-- 검색 옵션이 전체 검색일 경우  -->
+	<when test="searchOption == ''">
+		(ID LIKE CONCAT('%',#{search},'%')
+		OR NAME LIKE CONCAT('%',#{search},'%'))
+	</when>
+	<!-- 전체 검색이 아닌 경우  -->
+	<otherwise>
+		${searchOption} LIKE CONCAT('%',#{search},'%')
+	</otherwise>
+	</choose>
+	</if>
+</sql>
+	
+<select id="memberCount" parameterType="com.mealmaker.babiyo.util.SearchOption" resultType="int">
+SELECT COUNT(*)
+FROM MEMBERS
+<where>
+GRADE_CODE = 2
+<!-- <include refid="search"/>   -->
+</where>
+</select>
+
+<select id="memberList" parameterType="map" 
+		resultMap="memberResultMap">
+SELECT ID, 
+	 NAME, 
+	 NICKNAME, 
+	 EMAIL, 
+	 CREATE_DATE
+FROM MEMBERS
+<where>
+GRADE_CODE = 2
+<!-- <include refid="search"></include> -->
+</where>
+LIMIT ${begin}, 10
+</select>
+	
+<select id="memberExist" parameterType="map" resultMap="memberResultMap">
+SELECT 	ID, 
+		PASSWORD, 
+		NAME, 
+		EMAIL,
+		BIRTHDAY, 
+		GENDER, 
+		PHONE, 
+		NICKNAME, 
+		CASH, 
+		GRADE_CODE, 
+		CREATE_DATE, 
+		MODIFY_DATE
+FROM MEMBERS
+WHERE ID = #{id}
+AND PASSWORD = #{password}
+AND GRADE_CODE != 3
+</select>
+
+<select id="idCheck" parameterType="String" resultType="int">
+SELECT COUNT(ID)
+FROM MEMBERS
+WHERE ID = #{id}
+</select>
+
+
+<select id="emailCheck" parameterType="String" resultType="int">
+SELECT COUNT(EMAIL)
+FROM MEMBERS
+WHERE EMAIL = #{email}
+</select>
+
+<select id="phoneCheck" parameterType="String" resultType="int">
+SELECT COUNT(PHONE)
+FROM MEMBERS
+WHERE PHONE = #{phone}
+</select>
+
+<select id="nicknameCheck" parameterType="String" resultType="int">
+SELECT COUNT(NICKNAME)
+FROM MEMBERS
+WHERE NICKNAME = #{nickname}
+</select>
+
+<insert id="memberInsertOne" parameterType="MemberDto">
+INSERT INTO MEMBERS(
+	ID,
+	PASSWORD,
+	NAME, 
+	EMAIL, 
+	BIRTHDAY,
+	GENDER, 
+	PHONE, 
+	NICKNAME, 
+	CASH, 
+	GRADE_CODE, 
+	CREATE_DATE, 
+	MODIFY_DATE
+)
+VALUES(
+	#{id}, 
+	#{password}, 
+	#{name}, 
+	#{email}, 
+	#{birthDate}, 
+	#{gender}, 
+	#{phone}, 
+	#{nickname}, 
+	0, 
+	2, 
+	SYSDATE(), 
+	SYSDATE()
+)
+</insert>
+
+<insert id="insertInterest" parameterType="com.mealmaker.babiyo.member.model.InterestDto">
+INSERT INTO INTEREST(
+	MEMBER_ID,
+	PRODUCT_CODE
+)VALUES
+<foreach collection="list" item="interest" separator=",">
+  	(#{interest.memberId}, 
+	#{interest.productCode})
+</foreach>
+
+</insert>
+
+<select id="memberInfo" parameterType="String" resultMap="memberResultMap">
+SELECT 	ID, 
+		NAME, 
+		EMAIL, 
+		BIRTHDAY, 
+		GENDER, 
+		PHONE, 
+		NICKNAME, 
+		CASH, 
+		GRADE_CODE, 
+		CREATE_DATE, 
+		MODIFY_DATE
+FROM MEMBERS
+WHERE ID = #{value}
+</select>
+
+<update id="memberUpdateOne" parameterType="memberDto">
+UPDATE MEMBERS
+<set>
+	<if test="password != ''">PASSWORD = #{password},</if> 
+	<if test="name != ''">NAME = #{name},</if>
+	<if test="phone != ''">PHONE = #{phone},</if>
+	<if test="nickname != ''">NICKNAME = #{nickname},</if>
+	<if test="email != ''">EMAIL = #{email},</if>
+	GENDER = #{gender},
+	MODIFY_DATE = SYSDATE()
+</set>
+WHERE ID = #{id}
+</update>
+
+<delete id="deleteInterest" parameterType="map">
+DELETE FROM INTEREST
+WHERE MEMBER_ID = #{memberId}
+AND 
+<foreach collection="deleteList" item="code" open="(" separator="OR" close=")">
+PRODUCT_CODE = #{code}
+</foreach>
+</delete>
+
+<select id="memberInterest" parameterType="list"
+	 resultType="com.mealmaker.babiyo.member.model.InterestDto">
+SELECT PRODUCT_CODE "productCode"
+FROM INTEREST
+WHERE MEMBER_ID = #{memberId}
+</select>
+
+<update id="memberDeleteOne" parameterType="memberDto">
+UPDATE MEMBERS
+SET	GRADE_CODE = 3
+	WHERE ID = #{id}
+</update>
+
+<select id="findId" resultMap="memberResultMap">
+SELECT ID
+FROM MEMBERS
+WHERE EMAIL = #{email}
+</select>
+
+<select id="findPwd" resultMap="memberResultMap">
+SELECT ID, PASSWORD
+FROM MEMBERS
+WHERE EMAIL = #{email}
+</select>
+
+<update id="newPwd" parameterType="memberDto">
+UPDATE MEMBERS
+SET	PASSWORD = #{password}	
+	WHERE ID = #{id}
+</update>
+
+
+</mapper>

@@ -1,0 +1,154 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+ "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.mealmaker.babiyo.inquiry">
+
+<resultMap type="inquiryDto" id="inquiryResultMap">
+<id column="NO" property="no"/>
+<result column="MEMBER_ID" property="memberId"/>
+<result column="CATEGORY_CODE" property="categoryCode"/>
+<result column="TITLE" property="title"/>
+<result column="CONTENT" property="content"/>
+<result column="ANSWER" property="answer"/>
+<result column="CREATE_DATE" property="createDate"/>
+<result column="NAME" property="name"/>
+</resultMap>
+
+<!-- 카테고리 리스트 -->
+<select id="inquiryCategoeyList" resultType="com.mealmaker.babiyo.inquiry.model.InquiryCategoryDto">
+SELECT CODE "code", 
+	   NAME "name"
+FROM INQUIRY_CATEGORY
+</select>
+
+<!-- 회원 -->
+
+<!-- 검색, 필터 -->
+<select id="inquiryCount" parameterType="com.mealmaker.babiyo.util.SearchOption" resultType="int">
+SELECT COUNT(*)
+FROM INQUIRY
+<where>
+<if test="search != ''">MEMBER_ID = #{search}</if>
+<if test="stateCode == 1">AND ANSWER IS NOT NULL</if>
+<if test="stateCode == 2">AND ANSWER IS NULL</if>
+<if test="categoryCode != 0">AND CATEGORY_CODE = ${categoryCode}</if>
+</where>
+</select>
+
+<!-- 문의 리스트 -->
+<select id="inquiryList" parameterType="map" resultMap="inquiryResultMap">
+SELECT I.NO, 
+	   C.NAME, 
+	   I.TITLE, 
+	   I.CONTENT, 
+	   I.ANSWER, 
+	   I.CATEGORY_CODE,
+	   I.CREATE_DATE, 
+	   I.MEMBER_ID
+FROM INQUIRY I INNER JOIN INQUIRY_CATEGORY C
+ON C.CODE = I.CATEGORY_CODE
+<where>
+<if test="search != ''">MEMBER_ID = #{search}</if>
+<if test="stateCode == 1">AND ANSWER IS NOT NULL</if>
+<if test="stateCode == 2">AND ANSWER IS NULL</if>
+<if test="categoryCode != 0">AND CATEGORY_CODE = ${categoryCode}</if>
+</where>
+ORDER BY I.NO DESC
+LIMIT ${begin}, 10
+</select>
+
+<!-- 문의 상세 -->
+<select id="inquirySelectOne" parameterType="int"
+	resultMap="inquiryResultMap">
+	SELECT I.MEMBER_ID, 
+		   C.NAME, 
+		   I.TITLE, 
+		   I.CONTENT,
+		   I.ANSWER, 
+		   I.CREATE_DATE, 
+		   I.NO, 
+		   I.CATEGORY_CODE
+	FROM INQUIRY I INNER JOIN INQUIRY_CATEGORY C
+	ON C.CODE = I.CATEGORY_CODE
+	WHERE NO = #{no}
+</select>
+
+<!-- 문의 작성 -->
+<insert id="inquiryWrite" parameterType="inquiryDto">
+	INSERT INTO INQUIRY(
+		MEMBER_ID, 
+		CATEGORY_CODE, 
+		TITLE, CONTENT, 
+		CREATE_DATE
+	) VALUES(
+		#{memberId},
+		#{categoryCode}, 
+		#{title}, 
+		#{content}, 
+		SYSDATE()
+	)	
+</insert>
+
+<!-- 문의 수정 -->
+<update id="inquiryUpdateOne" parameterType="inquiryDto">
+	UPDATE INQUIRY
+	SET CATEGORY_CODE = #{categoryCode},
+		TITLE = #{title},
+		CONTENT = #{content}
+	WHERE NO = #{no}
+</update>
+
+<!-- 문의 삭제 -->
+<delete id="inquiryDeleteOne" parameterType="int">
+	DELETE FROM INQUIRY
+	WHERE NO = ${value}
+</delete>
+
+<!-- 관리자 -->
+
+
+<!-- 문의 상세 -->
+<select id="adminInquirySelectOne" parameterType="int"
+	resultMap="inquiryResultMap">
+	SELECT I.MEMBER_ID, 
+		   C.NAME, 
+		   I.TITLE, 
+		   I.CONTENT,
+		   I.ANSWER, 
+		   I.CREATE_DATE, 
+		   I.NO, 
+		   I.CATEGORY_CODE
+	FROM INQUIRY I INNER JOIN INQUIRY_CATEGORY C
+	ON C.CODE = I.CATEGORY_CODE
+	WHERE NO = #{value}
+</select>
+
+<!--문의답변, 수정-->
+<update id="adminAnswer" parameterType="inquiryDto">
+	UPDATE INQUIRY
+	SET ANSWER = #{answer}
+	WHERE NO = #{no}
+</update>
+
+<!--문의삭제-->
+<update id="adminDeleteOne" parameterType="inquiryDto">
+	UPDATE INQUIRY
+	SET ANSWER = ''
+	WHERE NO = #{no} 
+</update>
+
+<!-- 관리자 홈에서 문의수 조회 -->
+<select id="waitInquiryCount" resultType="int">
+	SELECT COUNT(*)
+	FROM INQUIRY
+	WHERE ANSWER IS NULL
+</select>
+
+<!-- 회원 홈에서 문의수 조회 -->
+<select id="homeInquiryCount" parameterType="String" resultType="int">
+	SELECT COUNT(*)
+	FROM INQUIRY
+	WHERE MEMBER_ID = #{value}
+</select>
+
+</mapper>

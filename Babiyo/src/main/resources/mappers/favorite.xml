@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+ "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.mealmaker.babiyo.favorite">
+
+<resultMap type="favoriteDto" id="favoriteResultMap">
+<result column="MEMBER_ID" property="memberId"/>
+<result column="PRODUCT_NO" property="productNo"/>
+<result column="NAME" property="productName"/>
+<result column="PRICE" property="productPrice"/>
+</resultMap>
+
+<select id="favoriteList" parameterType="map" resultMap="favoriteResultMap">
+SELECT F.MEMBER_ID, 
+	   F.PRODUCT_NO, 
+	   P.NAME, 
+	   P.PRICE
+FROM FAVORITE F JOIN PRODUCT P
+ON F.PRODUCT_NO = P.NO
+WHERE F.MEMBER_ID = #{memberId}
+LIMIT ${begin},10
+</select>
+
+<insert id="favoriteAdd" parameterType="map">
+INSERT INTO FAVORITE(
+	MEMBER_ID, 
+	PRODUCT_NO
+)VALUES(
+	#{memberId}, 
+	#{productNo}
+)
+</insert>
+
+<delete id="favoriteDelete" parameterType="favoriteDto">
+DELETE FROM FAVORITE
+WHERE MEMBER_ID = #{memberId} AND
+<choose>
+	<when test="favoriteList == null">
+		PRODUCT_NO = ${productNo}
+	</when>
+	<otherwise>
+	<foreach collection="favoriteList" item="favorite" open="(" separator="OR" close=")">
+		PRODUCT_NO = ${favorite.productNo}
+	</foreach>
+</otherwise>
+</choose>
+</delete>
+
+<select id="favoriteCheck" parameterType="favoriteDto" resultType="String">
+SELECT MEMBER_ID
+FROM FAVORITE
+WHERE MEMBER_ID = #{memberId}
+AND PRODUCT_NO = ${productNo}
+</select>
+
+<select id="totalCount" parameterType="String" resultType="int">
+SELECT COUNT(*)
+FROM FAVORITE
+WHERE MEMBER_ID = #{value}
+</select>
+
+
+</mapper>

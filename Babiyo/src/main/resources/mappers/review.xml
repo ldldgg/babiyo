@@ -1,0 +1,185 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+ "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.mealmaker.babiyo.review">
+
+	<sql id="search">
+		<choose>
+			<when test="searchOption == 'all'">
+				WHERE	MEMBER_ID LIKE CONCAT('%',#{keyword},'%')
+				OR		PRODUCT_NO LIKE CONCAT('%',#{keyword},'%')
+			</when>
+			<otherwise>
+				WHERE	${searchOption} LIKE CONCAT('%',#{keyword},'%')
+			</otherwise>
+		</choose>
+	</sql>
+	
+	<sql id="sort">
+		ORDER BY ${sortOption}
+	</sql>
+	
+	<resultMap type="reviewDto" id="reviewResultMap">
+		<id column="NO" property="no"/>
+		<result column="PRODUCT_NO" property="productNo"/>
+		<result column="PRODUCT_NAME" property="productName"/>
+		<result column="MEMBER_ID" property="memberId"/>
+		<result column="CATEGORY_NAME" property="categoryName"/>
+		<result column="STAR_RATING" property="starRating"/>
+		<result column="CONTENT" property="content"/>
+		<result column="CREATE_DATE" property="createDate"/>
+		<result column="MODIFY_DATE" property="modifyDate"/>
+		<result column="NAME" property="name"/>
+		<result column="NICKNAME" property="nickname"/>
+<!-- 		<result column="REVIEW_IMG" property="reviewImg"/> -->
+		<result column="PRODUCT_IMG" property="productImg"/>
+	</resultMap>
+	
+	<select id="reviewQuantity" resultType="int" parameterType="map">
+		SELECT COUNT(PRODUCT_NO)
+		FROM REVIEW
+		WHERE PRODUCT_NO = #{productNo}
+	</select>
+	
+	<select id="reviewEvaluation" resultType="double" parameterType="map">
+		SELECT COALESCE(TRUNCATE(AVG(STAR_RATING), 1), 0)
+		FROM REVIEW
+		WHERE PRODUCT_NO = #{productNo}
+	</select>
+	
+	<select id="reviewDetail" parameterType="int" resultMap="reviewResultMap">
+		SELECT 	R.NO, 
+				R.PRODUCT_NO,
+				P.NAME PRODUCT_NAME,
+				R.MEMBER_ID, 
+				R.STAR_RATING, 
+				R.CONTENT, 
+				R.CREATE_DATE, 
+				R.MODIFY_DATE,
+				M.NICKNAME,
+				PI.STORED_NAME PRODUCT_IMG
+		FROM REVIEW R JOIN MEMBERS M
+		ON R.MEMBER_ID = M.ID
+		JOIN PRODUCT P
+		ON P.NO = R.PRODUCT_NO
+		JOIN PRODUCT_IMAGE PI
+		ON P.NO = PI.PRODUCT_NO
+		WHERE R.NO = #{no}
+	</select>
+	
+	<insert id="insertFile" parameterType="map">
+		INSERT INTO REVIEW_IMAGE(
+			REVIEW_NO,
+			ORIGINAL_NAME, 
+			STORED_NAME
+		)VALUES(
+			#{parentSeq}, 
+			#{original_file_name}, 
+			#{stored_file_name}
+		)
+	</insert>
+ 
+ 	<select id="productReviewList" parameterType="map" resultMap="reviewResultMap">
+   		SELECT 	R.NO, 
+		   		R.PRODUCT_NO, 
+		   		P.NAME PRODUCT_NAME, 
+		   		M.NICKNAME, 
+		   		R.STAR_RATING, 
+		   		R.CONTENT,
+		   		R.CREATE_DATE, 
+		   		R.MODIFY_DATE
+		FROM REVIEW R LEFT OUTER JOIN PRODUCT P
+		ON R.PRODUCT_NO = P.NO
+		LEFT OUTER JOIN MEMBERS M
+		ON R.MEMBER_ID = M.ID
+		WHERE R.PRODUCT_NO = ${productNo}
+		ORDER BY ${sort}
+		LIMIT ${end}
+	</select>
+ 
+	<!-- 상품이미지 DB -->
+	
+	<select id="fileSelectList" parameterType="int" resultType="com.mealmaker.babiyo.util.ImageDto">
+		SELECT 	NO "no", 
+				ORIGINAL_NAME "originalName", 
+				STORED_NAME "storedName"
+		FROM REVIEW_IMAGE
+		WHERE REVIEW_NO = #{value}
+	</select>
+
+	<select id="fileSelectStoredFileName" parameterType="int" resultType="String">
+		SELECT STORED_NAME
+		FROM REVIEW_IMAGE
+		WHERE REVIEW_NO = #{value}
+	</select>
+
+	<delete id="fileDelete" parameterType="String">
+		DELETE FROM REVIEW_IMAGE
+		WHERE STORED_NAME = #{value}
+	</delete>
+
+	<!-- 회원 홈에서 리뷰수 조회 -->
+	<select id="reviewCount" parameterType="String" resultType="int">
+		SELECT COUNT(*)
+		FROM REVIEW
+		WHERE MEMBER_ID = #{value}
+	</select>
+	
+	<insert id="reviewWrite" parameterType="reviewDto" useGeneratedKeys="true"
+		keyColumn="NO" keyProperty="no">
+	INSERT INTO REVIEW(
+		PRODUCT_NO, 
+		MEMBER_ID, 
+		STAR_RATING, 
+		CONTENT, 
+		CREATE_DATE, 
+		MODIFY_DATE
+	)
+	VALUES(
+		${productNo}, 
+		#{memberId},
+		${starRating}, 
+		#{content}, 
+		SYSDATE(), 
+		SYSDATE()
+	)
+	</insert>
+	
+	<select id="reviewCollectionList" resultMap="reviewResultMap">
+	SELECT  R.NO, 
+			R.PRODUCT_NO, 
+			P.NAME PRODUCT_NAME, 
+			R.MEMBER_ID, 
+			R.STAR_RATING, 
+			R.CONTENT, 
+			R.CREATE_DATE, 
+			R.MODIFY_DATE, 
+			M.NAME, 
+			M.NICKNAME
+	FROM REVIEW R JOIN PRODUCT P
+	ON R.PRODUCT_NO = P.NO
+	JOIN MEMBERS M
+	ON R.MEMBER_ID = M.ID
+	ORDER BY R.CREATE_DATE DESC
+	LIMIT 4
+	</select>
+	
+	<update id="reviewModify" parameterType="reviewDto">
+	UPDATE REVIEW
+	SET STAR_RATING = ${starRating}, CONTENT = #{content}, MODIFY_DATE = NOW()
+	WHERE NO = ${no}
+	</update>
+	
+	<delete id="reviewDelete" parameterType="int">
+	DELETE FROM REVIEW
+	WHERE NO = ${value}
+	</delete>
+	
+	<select id="reviewCheck" parameterType="map" resultType="int">
+	SELECT NO
+	FROM REVIEW
+	WHERE MEMBER_ID = #{memberId}
+	AND PRODUCT_NO = ${productNo}
+	</select>
+	
+</mapper>

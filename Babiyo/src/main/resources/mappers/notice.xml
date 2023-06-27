@@ -1,0 +1,225 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+ "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.mealmaker.babiyo.notice">
+
+<resultMap type="noticeDto" id="noticeResultMap">
+<id column="NO" property="no"/>
+<result column="CATEGORY_CODE" property="categoryCode"/>
+<result column="NAME" property="categoryName"/>
+<result column="TITLE" property="title"/>
+<result column="CONTENT" property="content"/>
+<result column="HIT" property="hit"/>
+<result column="CREATE_DATE" property="createDate"/>
+<result column="EVENT_START_DATE" property="eventStartDate"/>
+<result column="EVENT_END_DATE" property="eventEndDate"/>
+</resultMap>
+
+<resultMap type="noticeImageDto" id="noticeImageResultMap">
+<id column="NO" property="no"/>
+<result column="NOTICE_NO" property="noticeNo"/>
+<result column="ORIGINAL_NAME" property="originalName"/>
+<result column="STORED_NAME" property="storedName"/>
+</resultMap>
+
+	<sql id="search">
+		<if test="searchOption != null">
+		<choose>
+		<!-- 검색 옵션이 전체 검색일 경우  -->
+		<when test="searchOption == ''">
+			(TITLE LIKE CONCAT('%',#{search},'%')
+			OR CONTENT LIKE CONCAT('%',#{search},'%'))
+		</when>
+		<!-- 전체 검색이 아닌 경우  -->
+		<otherwise>
+			${searchOption} LIKE CONCAT('%',#{search},'%')
+		</otherwise>
+		</choose>
+		</if>
+	</sql>
+	
+	<sql id="stateCode">
+	<if test="stateCode != 0">
+	<choose>
+	<when test="stateCode == 1">AND CATEGORY_CODE = 1</when>
+<!-- 	진행중인 이벤트 -->
+	<when test="stateCode == 2">
+		AND CATEGORY_CODE = 2
+		AND <![CDATA[EVENT_START_DATE <= SYSDATE()]]> 
+		AND <![CDATA[EVENT_END_DATE >= SYSDATE()]]>
+	</when>
+<!-- 	종료된 이벤트 -->
+	<when test="stateCode == 3">
+		AND CATEGORY_CODE = 2
+		AND <![CDATA[EVENT_END_DATE < SYSDATE()]]>
+	</when>
+	</choose>
+	</if>
+	</sql>
+
+<!-- 관리자 -->
+
+<select id="noticeCount" parameterType="com.mealmaker.babiyo.util.SearchOption" resultType="int">
+	SELECT COUNT(*)
+	FROM NOTICE
+	<where>
+	<include refid="search"/>  
+	<include refid="stateCode"/>
+	</where>
+</select>
+
+<!-- 공지 리스트 -->
+<select id="noticeList" parameterType="map" resultMap="noticeResultMap">
+SELECT 	N.NO, 
+		C.NAME, 
+		N.TITLE, 
+		N.CREATE_DATE, 
+		N.HIT, 
+		N.EVENT_START_DATE, 
+		N.EVENT_END_DATE, 
+		N.CONTENT, 
+		N.CATEGORY_CODE
+FROM NOTICE N INNER JOIN NOTICE_CATEGORY C
+ON N.CATEGORY_CODE = C.CODE
+<where>
+	<include refid="search"/>
+	<include refid="stateCode"/>
+</where>
+ORDER BY N.NO DESC
+LIMIT ${begin}, 10
+</select>
+
+<!-- 공지 사진 -->
+<insert id="insertFile" parameterType="map">
+	INSERT INTO NOTICE_IMAGE(
+		NOTICE_NO, 
+		ORIGINAL_NAME, 
+		STORED_NAME
+	)
+	VALUES(
+		#{parentSeq}, 
+		#{original_file_name}, 
+		#{stored_file_name}
+	)
+</insert>
+<!-- 공지 작성 -->
+<insert id="noticeWrite" parameterType="noticeDto" useGeneratedKeys="true" 
+	keyColumn="NO" keyProperty="no">
+INSERT INTO NOTICE(
+	CATEGORY_CODE, 
+	TITLE, 
+	CONTENT, 
+	CREATE_DATE, 
+	EVENT_START_DATE, 
+	EVENT_END_DATE
+)
+VALUES( 
+	#{categoryCode}, 
+	#{title}, 
+	#{content}, 
+	SYSDATE(),
+	<choose>
+		<when test="categoryCode == 1">
+			null,
+			null
+		</when>
+		<otherwise>
+			#{eventStartDate},
+			#{eventEndDate}
+		</otherwise>
+	</choose>
+)
+</insert>
+
+<!-- 사진 -->
+<select id="fileSelectOne" parameterType="int" resultType="com.mealmaker.babiyo.util.ImageDto">
+SELECT 	NO "no", 
+		ORIGINAL_NAME "originalName", 
+		STORED_NAME "storedName",
+		NOTICE_NO "targetNo"
+FROM NOTICE_IMAGE
+WHERE NOTICE_NO = #{value}
+</select>
+
+<!-- 공지 상세 -->
+<select id="noticeSelectOne" parameterType="int"
+	resultMap="noticeResultMap">
+SELECT 	C.NAME, 
+		N.EVENT_START_DATE, 
+		N.EVENT_END_DATE, 
+		N.HIT, 
+		N.TITLE, 
+		N.CREATE_DATE,
+		I.ORIGINAL_NAME, 
+		N.CONTENT, 
+		N.NO, 
+		N.CATEGORY_CODE
+FROM NOTICE N INNER JOIN NOTICE_CATEGORY C
+ON N.CATEGORY_CODE = C.CODE
+LEFT JOIN NOTICE_IMAGE I 
+ON N.NO = I.NOTICE_NO
+WHERE N.NO = #{no}
+</select>
+
+<!-- 공지 수정 -->
+<update id="noticeUpdate" parameterType="noticeDto">
+	UPDATE NOTICE
+	SET	TITLE = #{title},
+		CONTENT = #{content},
+		CATEGORY_CODE = #{categoryCode} 
+	<choose>
+		<when test="categoryCode == 1">
+			,EVENT_START_DATE = NULL
+			,EVENT_END_DATE = NULL
+		</when>
+		<otherwise>
+			,EVENT_START_DATE = #{eventStartDate}
+			,EVENT_END_DATE = #{eventEndDate}
+		</otherwise>	
+	</choose>
+	WHERE NO = #{no}
+</update>
+
+<update id="noticeHitPlus" parameterType="int">
+UPDATE NOTICE
+SET HIT = HIT + 1
+WHERE NO = ${value}
+</update>
+
+<!-- 파일삭제 -->
+<delete id="fileDelete" parameterType="int">
+DELETE FROM NOTICE_IMAGE
+WHERE NOTICE_NO = ${value}
+</delete>
+
+<!-- 공지 삭제 -->
+<delete id="noticeDeleteOne" parameterType="int">
+DELETE FROM NOTICE
+WHERE NO = #{no}
+</delete>
+
+<!-- 메인-공지 노출 -->
+<select id="mainLatestNotice" resultMap="noticeResultMap">
+SELECT 	NO, 
+		TITLE, 
+		CREATE_DATE
+FROM NOTICE
+WHERE CATEGORY_CODE = 1
+ORDER BY CREATE_DATE DESC
+LIMIT 1
+</select>
+
+<!-- 메인-이벤트 사진 노출 -->
+<select id="eventBannerImage" resultType="com.mealmaker.babiyo.util.ImageDto">
+SELECT 	I.NO "no", 
+		ORIGINAL_NAME "originalName", 
+		STORED_NAME "storedName", 
+		NOTICE_NO "targetNo"
+FROM NOTICE_IMAGE I JOIN NOTICE N
+ON I.NOTICE_NO = N.NO
+WHERE N.CATEGORY_CODE = 2
+AND SYSDATE() BETWEEN EVENT_START_DATE
+AND EVENT_END_DATE
+ORDER BY CREATE_DATE DESC
+</select>
+</mapper>

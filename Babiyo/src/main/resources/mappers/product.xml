@@ -1,0 +1,221 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+ "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.mealmaker.babiyo.product">
+
+	<sql id="categoryCode">
+		<if test="categoryCode != 0">
+			WHERE CATEGORY_CODE = ${categoryCode}
+		</if>
+	</sql>
+
+	<resultMap type="productDto" id="productResultMap">
+		<id column="NO" property="no" />
+		<result column="CATEGORY_CODE" property="categoryCode" />
+		<result column="CATEGORY_NAME" property="categoryName" />
+		<result column="NAME" property="name" />
+		<result column="PRICE" property="price" />
+		<result column="STOCK" property="stock" />
+		<result column="CONTENT" property="content" />
+		<result column="REGISTRATION_DATE" property="registrationDate" />
+	</resultMap>
+
+
+	<select id="productCategory" resultType="com.mealmaker.babiyo.product.model.ProductCategoryDto">
+		SELECT CODE "code",
+			   NAME "name"			  
+		FROM PRODUCT_CATEGORY
+	</select>
+
+	<select id="categoryCount" resultType="int"
+		parameterType="com.mealmaker.babiyo.util.SearchOption">
+		SELECT COUNT(*)
+		FROM PRODUCT
+		<where>
+			<if test="search != ''">AND NAME LIKE CONCAT('%',#{search},'%')</if>
+			<if test="categoryCode != 0">AND CATEGORY_CODE = ${categoryCode}</if>
+		</where>
+	</select>
+
+	<select id="categoryList" parameterType="map"
+		resultMap="productResultMap">
+		SELECT NO, 
+			   NAME, 
+			   PRICE
+		FROM PRODUCT
+		<where>
+		<if test="search != ''">AND NAME LIKE CONCAT('%',#{search},'%')</if>
+		<if test="categoryCode != 0">AND CATEGORY_CODE = ${categoryCode}</if>
+		</where>
+		ORDER BY NO DESC
+		LIMIT ${begin},8
+	</select>
+
+	<select id="productCount" resultType="int" parameterType="map">
+		SELECT COUNT(*)
+		FROM PRODUCT P JOIN PRODUCT_CATEGORY C
+		ON P.CATEGORY_CODE = C.CODE
+		<where>
+		<if test="searchOption == ''">
+			P.NAME LIKE CONCAT('%',#{search},'%')
+			OR C.NAME LIKE CONCAT('%',#{search},'%')
+		</if>
+		<if test="searchOption != ''">
+			${searchOption} LIKE CONCAT('%',#{search},'%')
+		</if>
+		</where>
+	</select>
+
+	<select id="productList" parameterType="map"
+		resultMap="productResultMap">
+		SELECT	P.NO, 
+				P.CATEGORY_CODE, 
+				C.NAME CATEGORY_NAME, 
+				P.NAME, 
+				P.PRICE, 
+				P.STOCK
+		FROM PRODUCT P JOIN PRODUCT_CATEGORY C
+		ON P.CATEGORY_CODE = C.CODE
+		WHERE
+		<if test="searchOption == ''">
+			P.NAME LIKE CONCAT('%',#{search},'%')
+			OR C.NAME LIKE CONCAT('%',#{search},'%')
+		</if>
+		<if test="searchOption != ''">
+			${searchOption} LIKE CONCAT('%',#{search},'%')
+		</if>
+		ORDER BY 
+		<if test="sort == ''">STOCK DESC</if>
+		<if test="sort != ''">${sort}</if>
+		LIMIT ${begin},10
+	</select>
+
+	<insert id="productRegistration" parameterType="productDto"
+		useGeneratedKeys="true" keyColumn="NO" keyProperty="no">
+		INSERT INTO PRODUCT(
+			CATEGORY_CODE,
+			NAME, 
+			PRICE, 
+			STOCK, 
+			CONTENT,
+			REGISTRATION_DATE
+		)
+		VALUES(
+			#{categoryCode}, 
+			#{name},
+			#{price}, 
+			#{stock},
+			#{content}, 
+			SYSDATE()
+		)
+	</insert>
+
+	<select id="productDetail" parameterType="int"
+		resultMap="productResultMap">
+		SELECT 	P.NO,
+				P.CATEGORY_CODE, 
+				C.NAME CATEGORY_NAME, 
+				P.NAME,
+				P.PRICE, 
+				P.STOCK, 
+				P.CONTENT
+		FROM PRODUCT P JOIN PRODUCT_CATEGORY C
+		ON P.CATEGORY_CODE = C.CODE
+		WHERE NO = #{no}
+	</select>
+
+	<select id="recommendProductList" parameterType="map"
+		resultMap="productResultMap">
+		SELECT 	P.NO, 
+				P.NAME, 
+				P.PRICE,
+				SUM(D.QUANTITY) COUNT
+		FROM PRODUCT P LEFT OUTER JOIN ORDER_DETAIL D
+		ON P.NO = D.PRODUCT_NO
+		WHERE P.CATEGORY_CODE IN (
+			SELECT PRODUCT_CODE
+			FROM INTEREST
+			WHERE MEMBER_ID = #{memberId}
+		) 
+		GROUP BY P.NO, 
+				 P.NAME, 
+				 P.PRICE
+		ORDER BY COUNT DESC
+		LIMIT 4
+	</select>
+
+	<select id="newProductList" parameterType="productDto"
+		resultMap="productResultMap">
+		SELECT 	NO,
+				NAME, 
+				PRICE
+		FROM PRODUCT
+		ORDER BY NO DESC
+		LIMIT 4
+	</select>
+
+	<update id="productModification" parameterType="productDto">
+		UPDATE PRODUCT
+		SET	NAME = #{name},
+			CATEGORY_CODE = #{categoryCode},
+			PRICE = #{price},
+			STOCK = #{stock},
+			CONTENT = #{content}
+		WHERE NO = #{no}
+	</update>
+
+	<delete id="productDelete" parameterType="int">
+		DELETE FROM PRODUCT
+		WHERE NO = #{value}
+	</delete>
+
+	<select id="stockView" resultType="int">
+		SELECT STOCK
+		FROM PRODUCT
+		WHERE NO = #{value}
+	</select>
+
+	<update id="stockUpdate" parameterType="map">
+		UPDATE PRODUCT
+		SET STOCK = STOCK + ${quantity}
+		WHERE NO = ${productNo}
+	</update>
+
+	<!-- 상품이미지 DB -->
+
+	<insert id="insertFile" parameterType="map">
+		INSERT INTO PRODUCT_IMAGE(
+			PRODUCT_NO, 
+			ORIGINAL_NAME, 
+			STORED_NAME
+		)
+		VALUES(
+			#{parentSeq},
+			#{original_file_name}, 
+			#{stored_file_name}
+		)
+	</insert>
+
+	<select id="fileSelectOne" parameterType="int" resultType="com.mealmaker.babiyo.util.ImageDto">
+		SELECT 	NO "no", 
+				ORIGINAL_NAME "originalName", 
+				STORED_NAME "storedName", 
+				PRODUCT_NO "targetNo"
+		FROM PRODUCT_IMAGE
+		WHERE PRODUCT_NO = #{value}
+	</select>
+
+	<select id="fileSelectStoredFileName" parameterType="int"
+		resultType="String">
+		SELECT STORED_NAME
+		FROM PRODUCT_IMAGE
+		WHERE PRODUCT_NO = #{value}
+	</select>
+
+	<delete id="fileDelete" parameterType="int">
+		DELETE FROM PRODUCT_IMAGE
+		WHERE PRODUCT_NO = #{value}
+	</delete>
+
+
+</mapper>
