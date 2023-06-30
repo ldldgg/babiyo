@@ -2,6 +2,7 @@
     pageEncoding="UTF-8"%>
 <%@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c" %>
 <%@ taglib uri="http://java.sun.com/jsp/jstl/fmt" prefix="fmt" %>
+<%@ taglib uri="http://java.sun.com/jsp/jstl/functions" prefix="fn"%>
 <!DOCTYPE html>
 <html>
 <head>
@@ -95,12 +96,19 @@
 }
 
 #eventImgDiv > div > a{
-	vertical-align: top;
+	position: relative;
+	width: 1200px;
+	height: 300px;
 	display: inline-block;
 }
 
 .eventImg{
-	width: 1200px;
+	position: absolute;
+	top: 0;
+	left: 0;
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
 }
 
 #bannerBtn{
@@ -234,6 +242,8 @@
 $(function(){
 	$('#bannerBtn0').attr('class', 'curBanner');
 	
+	console.log($('#bannerBtn0').scrollTop());
+	
 	bannerMove = setInterval(bannerAutoMoveFnc, 8000); // 8초 주기로 배너 자동넘김
 });
 
@@ -314,6 +324,9 @@ function bannerAnimationFnc(no, offset){
 					</c:when>
 					<c:otherwise>
 					<div style="font-size: 0">
+					<a href="/babiyo">
+						<img alt="main image" class="eventImg" src="/babiyo/resources/img/main.png">
+					</a>
 					<c:forEach items="${eventImgList}" var="img" varStatus="i">
 						<a href="/babiyo/notice/${img.targetNo}">
 							<img id="eventImg${i.index}" class="eventImg" alt="이벤트 이미지"
@@ -325,12 +338,11 @@ function bannerAnimationFnc(no, offset){
 				</c:choose>
 			</div>
 			<div id="bannerBtn">
-				<c:forEach items="${eventImgList}" varStatus="i">
-					<a href="#this" id="bannerBtn${i.index}" onclick="eventBannerMoveFnc(${i.index});">●</a>
+				<c:forEach var="i" begin="0" end="${fn:length(eventImgList)}">
+					<a id="bannerBtn${i}" onclick="eventBannerMoveFnc(${i});">●</a>
 				</c:forEach>
 			</div>
 		</div>
-		
 		
 		<c:if test="${not empty _memberDto_}">
 		<div class='productDiv'>
